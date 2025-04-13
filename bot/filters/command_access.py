@@ -10,7 +10,6 @@ class CommandAccessFilter(BaseFilter):
 
     async def __call__(self, message: Message) -> bool:
         command = message.text.split()[0][1:]
-        print(command, self.command)
         if command != self.command:
             return False
 

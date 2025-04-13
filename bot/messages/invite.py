@@ -8,3 +8,6 @@ def invite_links_message(invite_dict: dict, bot_username: str) -> str:
     for role, code in invite_dict.items():
         links_message += f"{role}: https://t.me/{bot_username}?start={code}\n\n"
     return links_message
+
+def secrets_update_message() -> str:
+    return "Секреты обновлены"

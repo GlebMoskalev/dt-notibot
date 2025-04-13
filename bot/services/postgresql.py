@@ -1,8 +1,8 @@
-import psycopg2
+import asyncpg
 import uuid
 import secrets
 from enum import Enum
-from typing import Optional, Dict, Union, Tuple, List
+from typing import Optional, Dict, Union, List
 
 class RoleEnum(str, Enum):
     User = "User"
@@ -10,67 +10,64 @@ class RoleEnum(str, Enum):
     SuperAdmin = "SuperAdmin"
 
 class DataBase:
-    def __init__(self, dsn):
-        self.connect = psycopg2.connect(dsn)
-        self.cursor = self.connect.cursor()
+    def __init__(self, dsn: str) -> None:
+        self.dsn: str = dsn
+        self.pool: Optional[asyncpg.Pool] = None
 
-    def add_users(self, chat_id: int, telegram_name: str, role: Union[str, RoleEnum]) -> None:
-        with self.connect:
-            self.cursor.execute(
+    async def connect(self) -> None:
+        self.pool = await asyncpg.create_pool(self.dsn)
+
+    async def add_users(self, chat_id: int, telegram_name: Optional[str], role: Union[str, RoleEnum]) -> None:
+        async with self.pool.acquire() as conn:
+            await conn.execute(
                 """
                 INSERT INTO users (chat_id, telegram_name, role)
-                VALUES (%s, %s, %s)
+                VALUES ($1, $2, $3)
                 ON CONFLICT (chat_id)
                 DO UPDATE SET telegram_name = EXCLUDED.telegram_name, role = EXCLUDED.role
-                """
-                ,
-                (chat_id, telegram_name, role)
+                """,
+                chat_id, telegram_name, str(role)
             )
 
-    def get_user_role(self, chat_id: int) -> Optional[str]:
-        with self.connect:
-            self.cursor.execute(
-                "SELECT role FROM users WHERE chat_id = %s", (chat_id,)
+    async def get_user_role(self, chat_id: int) -> Optional[str]:
+        async with self.pool.acquire() as conn:
+            result = await conn.fetchrow(
+                "SELECT role FROM users WHERE chat_id = $1", chat_id
             )
-            result = self.cursor.fetchone()
-            return result[0] if result else None
+            return result["role"] if result else None
 
-    def regenerate_invite_codes(self) -> None:
-        with self.connect:
+    async def regenerate_invite_codes(self) -> None:
+        async with self.pool.acquire() as conn:
             for role in RoleEnum:
-                new_code = secrets.token_urlsafe(12)[:20]
-                self.cursor.execute(
-                    "SELECT id FROM invites WHERE role = %s", (role.value,)
+                new_code: str = secrets.token_urlsafe(12)[:20]
+                existing = await conn.fetchrow(
+                    "SELECT id FROM invites WHERE role = $1", role.value
                 )
-                existing = self.cursor.fetchone()
 
                 if existing:
-                    self.cursor.execute(
-                        "UPDATE invites SET secret_code = %s WHERE role = %s",
-                        (new_code, role.value)
+                    await conn.execute(
+                        "UPDATE invites SET secret_code = $1 WHERE role = $2",
+                        new_code, role.value
                     )
                 else:
-                    self.cursor.execute(
-                        "INSERT INTO invites (id, secret_code, role) VALUES (%s, %s, %s)",
-                        (str(uuid.uuid4()), new_code, role.value)
+                    await conn.execute(
+                        "INSERT INTO invites (id, secret_code, role) VALUES ($1, $2, $3)",
+                        str(uuid.uuid4()), new_code, role.value
                     )
 
-    def check_invite_code(self, code: str) -> Optional[str]:
-        with self.connect:
-            self.cursor.execute(
-                "SELECT role FROM invites WHERE secret_code = %s", (code,)
+    async def check_invite_code(self, code: str) -> Optional[str]:
+        async with self.pool.acquire() as conn:
+            result = await conn.fetchrow(
+                "SELECT role FROM invites WHERE secret_code = $1", code
             )
-            result = self.cursor.fetchone()
-            return result[0] if result else None
+            return result["role"] if result else None
 
-    def get_invite_dict(self) -> Dict[str, str]:
-        with self.connect:
-            self.cursor.execute("SELECT role, secret_code FROM invites")
-            result = self.cursor.fetchall()
-            return {row[0]: row[1] for row in result}
+    async def get_invite_dict(self) -> Dict[str, str]:
+        async with self.pool.acquire() as conn:
+            result = await conn.fetch("SELECT role, secret_code FROM invites")
+            return {row["role"]: row["secret_code"] for row in result}
 
-    def close(self) -> None:
-        if self.cursor:
-            self.cursor.close()
-        if self.connect:
-            self.connect.close()
+    async def close(self) -> None:
+        if self.pool:
+            await self.pool.close()
+            self.pool = None

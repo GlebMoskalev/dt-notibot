@@ -113,3 +113,14 @@ class DataBase:
                 """,
                 user_id, event_id
             )
+
+    async def is_event_favorite(self, user_id: int, event_id: str) -> bool:
+        async with self.pool.acquire() as conn:
+            result = await conn.fetchval(
+                """
+                SELECT 1 FROM favourite_events
+                WHERE user_id = $1 AND event_id = $2
+                """,
+                user_id, event_id
+            )
+            return result is not None

@@ -88,6 +88,8 @@ class ScheduleHandler:
             user_id = message.from_user.id
 
             event_ids = self.user_page_events.get(user_id, [])
+
+
             if not event_ids:
                 await message.answer(
                     "Сначала откройте расписание с помощью /schedule."
@@ -96,6 +98,13 @@ class ScheduleHandler:
 
             if 1 <= index <= len(event_ids):
                 event_id = event_ids[index - 1]
+
+                is_favorite = await self.db.is_event_favorite(user_id,
+                                                              event_id)
+                if is_favorite:
+                    await message.answer("Это событие уже в избранном ⭐")
+                    return
+
                 await self.db.add_favorite(user_id, event_id)
                 await message.answer("Событие добавлено в избранное! ⭐")
             else:

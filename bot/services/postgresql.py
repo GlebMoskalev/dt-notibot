@@ -71,3 +71,45 @@ class DataBase:
         if self.pool:
             await self.pool.close()
             self.pool = None
+
+
+    async def get_events_paginated(self, limit: int = 5, offset: int = 0) -> tuple[List[Dict], int]:
+        async with self.pool.acquire() as conn:
+            events = await conn.fetch(
+                """
+                SELECT id, start_time, end_time, section, description, organizers
+                FROM events
+                ORDER BY start_time
+                LIMIT $1 OFFSET $2
+                """,
+                limit, offset
+            )
+
+            total_count = await conn.fetchval(
+                "SELECT COUNT(*) FROM events"
+            )
+
+            formatted_events = [
+                {
+                    "id": str(row["id"]),
+                    "start_time": row["start_time"],
+                    "end_time": row["end_time"],
+                    "section": row["section"],
+                    "description": row["description"],
+                    "organizers": row["organizers"]
+                }
+                for row in events
+            ]
+
+            return formatted_events, total_count
+
+    async def add_favorite(self, user_id: int, event_id: str) -> None:
+        async with self.pool.acquire() as conn:
+            await conn.execute(
+                """
+                INSERT INTO favourite_events (user_id, event_id)
+                VALUES ($1, $2)
+                ON CONFLICT DO NOTHING
+                """,
+                user_id, event_id
+            )

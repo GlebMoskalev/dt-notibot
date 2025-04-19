@@ -1,6 +1,7 @@
 from aiogram import Dispatcher, F
 from .invite import register_invite_handlers
 from .start import register_start_handlers
+from .users import register_users_handler
 from bot.services import DataBase
 from aiogram.types import Message
 from bot.messages import command_not_found_message, access_denied_message
@@ -9,6 +10,7 @@ from bot.commands import admin_commands, super_admin_commands, user_commands
 def register_all_handlers(dp: Dispatcher, db: DataBase) -> None:
     register_start_handlers(dp, db)
     register_invite_handlers(dp, db)
+    register_users_handler(dp, db)
 
     dp.message.register(unknown_command_handler, F.text.startswith('/'))
 

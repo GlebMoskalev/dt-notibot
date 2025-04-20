@@ -124,3 +124,51 @@ class DataBase:
                 user_id, event_id
             )
             return result is not None
+
+    async def remove_favorite(self, user_id: int, event_id: str) -> None:
+        async with self.pool.acquire() as conn:
+            await conn.execute(
+                """
+                DELETE FROM favourite_events
+                WHERE user_id = $1 AND event_id = $2
+                """,
+                user_id, event_id
+            )
+
+    async def get_favorite_events_paginated(self, user_id: int, limit: int = 5,
+                                            offset: int = 0) -> tuple[List[Dict], int]:
+        async with self.pool.acquire() as conn:
+            events = await conn.fetch(
+                """
+                SELECT e.id, e.start_time, e.end_time, e.section, e.description, e.organizers
+                FROM events e
+                JOIN favourite_events f ON e.id = f.event_id
+                WHERE f.user_id = $1
+                ORDER BY e.start_time
+                LIMIT $2 OFFSET $3
+                """,
+                user_id, limit, offset
+            )
+
+            total_count = await conn.fetchval(
+                """
+                SELECT COUNT(*)
+                FROM favourite_events
+                WHERE user_id = $1
+                """,
+                user_id
+            )
+
+            formatted_events = [
+                {
+                    "id": str(row["id"]),
+                    "start_time": row["start_time"],
+                    "end_time": row["end_time"],
+                    "section": row["section"],
+                    "description": row["description"],
+                    "organizers": row["organizers"]
+                }
+                for row in events
+            ]
+
+            return formatted_events, total_count

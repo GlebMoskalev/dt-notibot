@@ -2,9 +2,9 @@ from aiogram import Dispatcher
 from aiogram.types import Message, CallbackQuery, InlineKeyboardMarkup, InlineKeyboardButton
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 from bot.messages import error_message
-from bot.services.postgresql import DataBase
+from bot.services.postgresql import DataBase, RoleEnum
 from bot.filters import CommandAccessFilter
-from bot.messages.admin import users_message
+from bot.messages.admin import users_message, user_names_not_found
 from bot.callbacks.pagination import Pagination
 
 
@@ -23,11 +23,14 @@ def register_users_handler(dp: Dispatcher, db: DataBase) -> None:
 class UsersHandler:
     def __init__(self, db: DataBase):
         self.db = db
-        self.__users_in_page = 10
+        self.__users_in_page = 1
 
-    async def users_handler(self, message: Message):
+    async def users_handler(self, message: Message) -> None:
         try:
-            user_names = await self.db.get_user_names()
+            user_names = await self.db.get_all_names(RoleEnum.User)
+            if user_names is None:
+                await message.answer(text=user_names_not_found())
+                return
             paginator = await self.get_paginated_user_names(len(user_names))
             
             users = users_message(user_names, 0, self.__users_in_page)
@@ -41,17 +44,21 @@ class UsersHandler:
             await message.answer(error_message())
             print(e)
     
-    async def users_callback(self, callback: CallbackQuery, callback_data: Pagination):
+    async def users_callback(self, callback: CallbackQuery, callback_data: Pagination) -> None:
         try:
             page = callback_data.page
-            user_names = await self.db.get_user_names()
+            user_names = await self.db.get_all_names(RoleEnum.User)
+            if user_names is None:
+                await callback.message.answer(text=user_names_not_found())
+                return
             paginator = await self.get_paginated_user_names(len(user_names), page)
 
+            users = users_message(user_names, self.__users_in_page * page, self.__users_in_page)
             print(f'Return less or equal {self.__users_in_page} user names on page {page} in chat {callback.message.chat.id}')
             print(users)
             await callback.answer()
             await callback.message.edit_text(
-                text=users_message(user_names, self.__users_in_page * page, self.__users_in_page),
+                text=users,
                 reply_markup=paginator
             )
         except Exception as e:

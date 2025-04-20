@@ -29,14 +29,14 @@ class DataBase:
                 chat_id, telegram_name, str(role)
             )
 
-    # вряд ли пользователей будет много,
+    # вряд ли сущностей будет много,
     # поэтому всех выгружаем без пагинации и дело с концом
-    async def get_user_names(self) -> Optional[List[str]]:
-        print('Get all user names')
+    async def get_all_names(self, role: RoleEnum) -> Optional[List[str]]:
+        print(f'Get all {role} names')
         async with self.pool.acquire() as conn:
             result = await conn.fetch(
                 "SELECT telegram_name FROM users WHERE role = $1",
-                RoleEnum.User
+                role
             )
             return [item['telegram_name'] for item in result] if result else None
 

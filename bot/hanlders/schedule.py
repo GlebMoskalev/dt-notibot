@@ -72,17 +72,19 @@ class ScheduleHandler:
 
             text_favorite = favorites_schedules_message(favorite_schedules)
             if message is not None:
-                await message.answer(
+                sent_message= await message.answer(
                     text=text_favorite,
                     reply_markup=self.__pagination_keyboard(page, total_pages,
                                                             "favorite_schedules")
                 )
+                self.last_favorites_message[user_id] = sent_message.message_id
             elif callback is not None:
                 await callback.message.edit_text(
                     text=text_favorite,
                     reply_markup=self.__pagination_keyboard(page, total_pages,
                                                             "favorite_schedules")
                 )
+                self.last_favorites_message[ user_id] = callback.message.message_id
         except Exception as e:
             print(e)
             if message is not None:
@@ -198,6 +200,26 @@ class ScheduleHandler:
                     return
 
                 await self.db.remove_favorite(user_id, event_id)
+
+                favorite_schedules, total = await self.db.get_favorite_events_paginated(
+                    user_id, self.limit, 0)
+                total_pages = (total + self.limit - 1) // self.limit if total > 0 else 1
+                self.user_favorite_events[user_id] = [event["id"] for event in favorite_schedules]
+
+                if user_id in self.last_favorites_message:
+                    try:
+                        await message.bot.edit_message_text(
+                            chat_id=message.chat.id,
+                            message_id=self.last_favorites_message[user_id],
+                            text=favorites_schedules_message(
+                                favorite_schedules),
+                            reply_markup=self.__pagination_keyboard(
+                                1, total_pages,
+                                "favorite_schedules")
+                        )
+                    except Exception as e:
+                        print(e)
+
                 await message.answer("Событие удалено из избранного. ❌")
             else:
                 await message.answer(

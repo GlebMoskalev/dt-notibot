@@ -1,17 +1,12 @@
 from sys import prefix
-
-from aiogram.filters.callback_data import CallbackData
 from bot.services import DataBase
 from aiogram.types import Message, InlineKeyboardButton, InlineKeyboardMarkup, CallbackQuery
 from aiogram import Dispatcher
 from bot.filters import CommandAccessFilter
-from aiogram.utils.keyboard import InlineKeyboardBuilder
 from collections import defaultdict
 from bot.messages import schedules_message, error_message, favorites_schedules_message
+from bot.keyboards import Pagination_keyboard, Pagination
 
-class Pagination(CallbackData, prefix="pag"):
-    prefix: str
-    page: int
 
 def register_schedule_handlers(dp: Dispatcher, db: DataBase) -> None:
     handler = ScheduleHandler(db)
@@ -74,14 +69,14 @@ class ScheduleHandler:
             if message is not None:
                 sent_message= await message.answer(
                     text=text_favorite,
-                    reply_markup=self.__pagination_keyboard(page, total_pages,
+                    reply_markup=Pagination_keyboard(page, total_pages,
                                                             "favorite_schedules")
                 )
                 self.last_favorites_message[user_id] = sent_message.message_id
             elif callback is not None:
                 await callback.message.edit_text(
                     text=text_favorite,
-                    reply_markup=self.__pagination_keyboard(page, total_pages,
+                    reply_markup=Pagination_keyboard(page, total_pages,
                                                             "favorite_schedules")
                 )
                 self.last_favorites_message[ user_id] = callback.message.message_id
@@ -119,12 +114,12 @@ class ScheduleHandler:
             if message is not None:
                 await message.answer(
                     text=text_schedules,
-                    reply_markup=self.__pagination_keyboard(page, total_pages, "schedule")
+                    reply_markup=Pagination_keyboard(page, total_pages, "schedule")
                 )
             elif callback is not None:
                 await callback.message.edit_text(
                     text=text_schedules,
-                    reply_markup=self.__pagination_keyboard(page, total_pages, "schedule")
+                    reply_markup=Pagination_keyboard(page, total_pages, "schedule")
                 )
 
         except Exception as e:
@@ -213,7 +208,7 @@ class ScheduleHandler:
                             message_id=self.last_favorites_message[user_id],
                             text=favorites_schedules_message(
                                 favorite_schedules),
-                            reply_markup=self.__pagination_keyboard(
+                            reply_markup=Pagination_keyboard(
                                 1, total_pages,
                                 "favorite_schedules")
                         )
@@ -231,18 +226,3 @@ class ScheduleHandler:
             print(e)
             await message.answer("Произошла ошибка. Попробуйте снова.")
 
-    def __pagination_keyboard(self, page: int,
-                              total_pages: int, prefix: str) -> InlineKeyboardMarkup:
-        builder = InlineKeyboardBuilder()
-        buttons = [
-            ("⬅️", Pagination(page=page - 1, prefix=prefix).pack() if page > 1 else "null"),
-            (f"{page} / {total_pages}", "null"),
-            ("➡️", Pagination(
-                page=page + 1, prefix=prefix).pack() if page < total_pages else "null"),
-        ]
-
-        builder.row(*[
-            InlineKeyboardButton(text=text, callback_data=callback_data)
-            for text, callback_data in buttons
-        ])
-        return builder.as_markup()

@@ -1,11 +1,11 @@
-from sys import prefix
 from bot.services import DataBase
-from aiogram.types import Message, InlineKeyboardButton, InlineKeyboardMarkup, CallbackQuery
+from aiogram.types import Message, CallbackQuery
 from aiogram import Dispatcher
 from bot.filters import CommandAccessFilter
 from collections import defaultdict
 from bot.messages import schedules_message, error_message, favorites_schedules_message
 from bot.keyboards import Pagination_keyboard, Pagination
+from aiogram import F
 
 
 def register_schedule_handlers(dp: Dispatcher, db: DataBase) -> None:
@@ -17,7 +17,7 @@ def register_schedule_handlers(dp: Dispatcher, db: DataBase) -> None:
 
     dp.callback_query.register(
         handler.schedule_callback,
-        Pagination.filter()
+        Pagination.filter(F.prefix == 'schedule')
     )
 
     dp.callback_query.register(

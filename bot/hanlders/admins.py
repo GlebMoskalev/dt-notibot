@@ -1,11 +1,11 @@
 from aiogram import Dispatcher
-from aiogram.types import Message, CallbackQuery, InlineKeyboardMarkup, InlineKeyboardButton
-from aiogram.utils.keyboard import InlineKeyboardBuilder
+from aiogram.types import Message, CallbackQuery
 from bot.messages import error_message
 from bot.services.postgresql import DataBase, RoleEnum
 from bot.filters import CommandAccessFilter
 from bot.messages.superadmin import admins_message, admin_names_not_found
-from bot.callbacks.pagination import Pagination
+from bot.keyboards import Pagination_keyboard, Pagination
+from aiogram import F
 
 
 def register_admins_handler(dp: Dispatcher, db: DataBase) -> None:
@@ -17,7 +17,7 @@ def register_admins_handler(dp: Dispatcher, db: DataBase) -> None:
 
     dp.callback_query.register(
         handler.admins_callback,
-        Pagination.filter()
+        Pagination.filter(F.prefix == 'admins')
     )
 
 class AdminsHandler:
@@ -31,7 +31,8 @@ class AdminsHandler:
             if admin_names is None:
                 await message.answer(text=admin_names_not_found())
                 return
-            paginator = await self.get_paginated_admin_names(len(admin_names))
+            all_pages = len(admin_names) // self.__admins_in_page + (len(admin_names) % self.__admins_in_page != 0)
+            paginator = await Pagination_keyboard(1, all_pages, "admins")
             
             admins = admins_message(admin_names, 0, self.__admins_in_page)
             print(f'Return less or equal {self.__admins_in_page} admin names on page 0 in chat {message.chat.id}')
@@ -51,7 +52,8 @@ class AdminsHandler:
             if admin_names is None:
                 await callback.message.answer(text=admin_names_not_found())
                 return
-            paginator = await self.get_paginated_admin_names(len(admin_names), page)
+            all_pages = len(admin_names) // self.__admins_in_page + (len(admin_names) % self.__admins_in_page != 0)
+            paginator = await Pagination_keyboard(page, all_pages, "admins")
 
             admins = admins_message(admin_names, self.__admins_in_page * page, self.__admins_in_page)
             print(f'Return less or equal {self.__admins_in_page} admin names on page {page} in chat {callback.message.chat.id}')
@@ -64,30 +66,3 @@ class AdminsHandler:
         except Exception as e:
             await callback.message.answer(error_message())
             print(e)
-            
-    async def get_paginated_admin_names(self, total_count: int, page: int = 0) -> InlineKeyboardMarkup:
-        builder = InlineKeyboardBuilder()  
-        start_offset = page * self.__admins_in_page
-        end_offset = start_offset + self.__admins_in_page
-        print(f'Return admins with interval: {start_offset}-{end_offset}')
-        buttons_row = []
-    
-        if page > 0:
-            print('Add left button for user names')
-            buttons_row.append(  
-                InlineKeyboardButton(  
-                    text="⬅️",  
-                    callback_data=Pagination(page=page - 1).pack(),  
-                )  
-            )  
-        if end_offset < total_count:
-            print('Add right button for user names')
-            buttons_row.append(  
-                InlineKeyboardButton(  
-                    text="➡️",  
-                    callback_data=Pagination(page=page + 1).pack(),  
-                )  
-            )
-        builder.row(*buttons_row)
-
-        return builder.as_markup()

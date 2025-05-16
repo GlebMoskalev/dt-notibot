@@ -21,7 +21,7 @@ async def main():
         await db.connect()
         # await db.regenerate_invite_codes()
 
-        register_all_handlers(dp, db)
+        await register_all_handlers(dp, db)
         await dp.start_polling(bot)
     except Exception as e:
         print(f"Startup error: {e}")

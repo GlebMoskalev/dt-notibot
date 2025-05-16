@@ -1,8 +1,10 @@
 import asyncpg
 import uuid
+import json
 import secrets
 from enum import Enum
 from typing import Optional, Dict, Union, List
+from datetime import datetime
 
 class RoleEnum(str, Enum):
     User = "User"
@@ -183,3 +185,51 @@ class DataBase:
             ]
 
             return formatted_events, total_count
+    
+    # переделать этот запрос на работу с enum sections,
+    # как станет известно, какие у нас есть секции
+    async def get_event_sections(self) -> List[str]:
+        async with self.pool.acquire() as conn:
+            events = await conn.fetch(
+                """
+                SELECT DISTINCT(section)
+                FROM events
+                """
+            )
+
+            return [row['section'] for row in events]
+    
+    
+    async def add_event(
+        self,
+        section: str,
+        description: str,
+        organizers: List[str],
+        start_time: datetime,
+        end_time: datetime
+    ) -> None:
+        if not all([section, description, organizers]):
+            raise ValueError("Missing required fields")
+
+        if end_time <= start_time:
+            raise ValueError("End time must be after start time")
+        
+        async with self.pool.acquire() as conn:
+            await conn.execute(
+                """
+                INSERT INTO events (
+                    id,
+                    section,
+                    description,
+                    organizers,
+                    start_time,
+                    end_time
+                ) VALUES ($1, $2, $3, $4, $5, $6)
+                """,
+                str(uuid.uuid4()),
+                section,
+                description,
+                json.dumps(organizers, ensure_ascii=False),
+                start_time,
+                end_time
+            )

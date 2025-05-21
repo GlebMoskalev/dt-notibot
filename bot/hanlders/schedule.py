@@ -1,15 +1,20 @@
 from bot.services import DataBase
-from aiogram.types import Message, CallbackQuery
+from aiogram.types import Message, CallbackQuery, ReplyKeyboardMarkup, KeyboardButton
 from aiogram import Dispatcher
 from bot.filters import CommandAccessFilter
 from collections import defaultdict
-from bot.messages import schedules_message, error_message, favorites_schedules_message
+from bot.messages import schedules_message, error_message, favorites_schedules_message, edit_event
 from bot.keyboards import Pagination_keyboard, Pagination
 from aiogram import F
+from bot.states import EventStates
+from aiogram.fsm.context import FSMContext
+from datetime import datetime
+from typing import List
+import re
 
-
-def register_schedule_handlers(dp: Dispatcher, db: DataBase) -> None:
+async def register_schedule_handlers(dp: Dispatcher, db: DataBase) -> None:
     handler = ScheduleHandler(db)
+    await handler.create()
     dp.message.register(
         handler.start_schedule,
         CommandAccessFilter(command='schedule', db=db)
@@ -48,6 +53,10 @@ class ScheduleHandler:
         self.user_page_events = defaultdict(list)
         self.user_favorite_events = defaultdict(list)
         self.last_favorites_message = defaultdict(list)
+        self.event_sections = None
+    
+    async def create(self):
+        self.event_sections = await self.db.get_event_sections()
 
     async def start_schedule(self, message: Message):
         return await self.__handle_schedule_page(message=message, page=1)
@@ -172,6 +181,124 @@ class ScheduleHandler:
             print(e)
             await message.answer("Произошла ошибка. Попробуйте снова.")
 
+    async def start_edit_event_command(self, message: Message, state: FSMContext) -> None:
+        try:
+            command = message.text
+            index = int(command.split("_")[-1])
+            user_id = message.from_user.id
+
+            event_ids = self.user_page_events.get(user_id, [])
+
+            if not event_ids:
+                await message.answer(
+                    "Сначала откройте расписание с помощью /schedule."
+                )
+                return
+
+            if 1 <= index <= len(event_ids):
+                event_id = event_ids[index - 1]
+                event = await self.db.get_event(event_id)
+                state.update_data(event=event)
+                edit_message = edit_event.start_edit_event_message() + '\n' + edit_event.section_edit_event_message(event['section'])
+
+                message.answer(edit_message, reply_markup=self.__create_section_buttons())
+                state.set_state(EventStates.waiting_for_section)
+            else:
+                await message.answer(
+                    "Неверный индекс события. Используйте /schedule для просмотра доступных событий.")
+        except ValueError:
+            await message.answer(
+                "Ошибка в формате команды. Пример: /edit_event_1")
+        except Exception as e:
+            print(e)
+            await message.answer("Произошла ошибка. Попробуйте снова.")
+    
+    async def edit_section_command(self, message: Message, state: FSMContext) -> None:
+        section = message.text
+        if section != 'Next':
+            if section not in self.event_sections:
+                await message.answer('Неопознанный тип события. Выберите корректный тип события')
+                return
+            event = await state.get_value('event')
+            event['section'] = section
+            await state.update_data(event=event)
+
+            description_message = edit_event.description_edit_event_message(event['description'])
+            await message.answer(text=description_message, reply_markup='Markdown')
+        await state.set_state(EventStates.waiting_for_description)
+        
+    async def edit_organizers_command(self, message: Message, state: FSMContext) -> None:
+        description = message.text.strip()
+        if description != 'Next':
+            if description == '':
+                await message.answer('Введите, пожалуйста, непустое описание события')
+                return
+            event = await state.get_value('event')
+            event['description'] = description
+            await state.update_data(event=event)
+            
+            organizers_message = edit_event.organizers_edit_event_message(event['organizers'])
+            await message.answer(text=organizers_message, reply_markup='Markdown')
+        await state.set_state(EventStates.waiting_for_organizers)
+    
+    async def edit_start_time_command(self, message: Message, state: FSMContext) -> None:
+        organizers = message.text
+        if organizers != 'Next':
+            if not self.__check_orgnizers_format(organizers):
+                await message.answer('Используйте формат: Имя Фамилия - для представления спикера. Введите спикеров снова')
+                return
+            event = await state.get_value('event')
+            event['organizers'] = self.__parse_orgnizers(organizers)
+            await state.update_data(event=event)
+            
+            start_date_message = edit_event.start_time_edit_event_message(event['start_time'])
+            await message.answer(text=start_date_message, parse_mode='Markdown')
+        await state.set_state(EventStates.waiting_for_start_time)
+    
+    async def edit_end_time_command(self, message: Message, state: FSMContext) -> None:
+        start_time = message.text
+        if start_time != 'Next':
+            if not self.__check_time_format(start_time):
+                await message.answer('Для ввода времени используйте формат:\n```\nДень.Месяц Часы:Минуты```', parse_mode='Markdown')
+                return
+            event = await state.get_value('event')
+            event['start_time'] = start_time
+            await state.update_data(event=event)
+            
+            end_date_message = edit_event.end_time_edit_event_message(event['end_time'])
+            await message.answer(text=end_date_message, parse_mode='Markdown')
+        await state.set_state(EventStates.waiting_for_end_time)
+    
+    async def edit_end_add_event_command(self, message: Message, state: FSMContext) -> None:
+        end_time = message.text
+        if not self.__check_time_format(end_time):
+            await message.answer('Для ввода времени используйте формат:\n```\nДень.Месяц Часы:Минуты```', parse_mode='Markdown')
+            return
+        
+        event = await state.get_value('event')
+        try:
+            start_datetime = self.__parse_time_string(event['start_time'])
+            end_datetime = self.__parse_time_string(end_time)
+            
+            event_data = {
+                'event_id': event['id'],
+                'section': event['section'],
+                'description': event['description'],
+                'organizers': event['organizers'],
+                'start_time': start_datetime,
+                'end_time': end_datetime
+            }
+            
+            await self.db.update_event(**event_data)
+            end_message = edit_event.end_new_edit_event_message()
+            await message.answer(text=end_message, reply_markup='Markdown')
+
+        except Exception as e:
+            await message.answer("Произошла ошибка при обновлении события. Пожалуйста, попробуйте снова.")
+            print(f"Error creating event: {e}")
+        finally:
+            await state.clear()
+
     async def remove_favorite_by_command(self, message: Message):
         try:
             command = message.text
@@ -226,3 +353,64 @@ class ScheduleHandler:
             print(e)
             await message.answer("Произошла ошибка. Попробуйте снова.")
 
+    def __check_orgnizers_format(self, orgs: str) -> bool:
+        orgs = orgs.strip()
+        while '  ' in orgs:
+            orgs = orgs.replace('  ', ' ')
+        while ', ' in orgs:
+            orgs = orgs.replace(', ', ',')
+        while ' ,' in orgs:
+            orgs = orgs.replace(' ,', ',')
+        return all([name != ''
+                    for org in orgs.split(',')
+                    for name in org.split()])
+    
+    def __parse_orgnizers(self, orgs: str) -> List[str]:
+        orgs = orgs.strip()
+        while '  ' in orgs:
+            orgs = orgs.replace('  ', ' ')
+        while ', ' in orgs:
+            orgs = orgs.replace(', ', ',')
+        while ' ,' in orgs:
+            orgs = orgs.replace(' ,', ',')
+        return orgs.split(',')
+    
+    def __check_time_format(self, time: str) -> bool:
+        time = time.strip()
+        while '  ' in time:
+            time = time.replace('  ', ' ')
+    
+        pattern = r'^\d{1,2}\.\d{1,2} \d{1,2}:\d{1,2}$'
+        if not re.fullmatch(pattern, time):
+            return False
+        
+        try:
+            self.__parse_time_string(time)
+            return True
+        except (ValueError, AttributeError):
+            return False
+        
+    def __create_section_buttons(self) -> ReplyKeyboardMarkup:
+        keyboards = []
+        for section in self.event_sections:
+            keyboards.append([KeyboardButton(text=section)])
+        
+        return ReplyKeyboardMarkup(
+            keyboard=keyboards,
+            resize_keyboard=True,
+            one_time_keyboard=True
+        )
+    
+    def __parse_time_string(self, time_str: str) -> datetime:
+        date_part, time_part = time_str.split()
+        day, month = map(int, date_part.split('.'))
+        hours, minutes = map(int, time_part.split(':'))
+        
+        current_year = datetime.now().year
+        return datetime(
+            year=current_year,
+            month=month,
+            day=day,
+            hour=hours,
+            minute=minutes
+        )

@@ -86,6 +86,29 @@ class DataBase:
             self.pool = None
 
 
+    async def get_event(self, event_id: str) -> Dict:
+        async with self.pool.acquire() as conn:
+            row = await conn.fetchrow(
+                """
+                SELECT id, start_time, end_time, section, description, organizers
+                FROM events
+                WHERE id=$1
+                """,
+                event_id
+            )
+
+            event = \
+                {
+                    "id": str(row["id"]),
+                    "start_time": row["start_time"],
+                    "end_time": row["end_time"],
+                    "section": row["section"],
+                    "description": row["description"],
+                    "organizers": row["organizers"]
+                }
+
+            return event
+
     async def get_events_paginated(self, limit: int = 5, offset: int = 0) -> tuple[List[Dict], int]:
         async with self.pool.acquire() as conn:
             events = await conn.fetch(
@@ -233,3 +256,34 @@ class DataBase:
                 start_time,
                 end_time
             )
+
+    async def update_event(
+            self,
+            event_id: str,
+            section: str,
+            description: str,
+            organizers: List[str],
+            start_time: datetime,
+            end_time: datetime
+        ) -> None:
+            if end_time <= start_time:
+                raise ValueError("End time must be after start time")
+            
+            async with self.pool.acquire() as conn:
+                await conn.execute(
+                    """
+                    UPDATE events
+                    SET section=$2,
+                        description=$3,
+                        organizers=$4,
+                        start_time=$5,
+                        end_time=$6
+                    WHERE id=$1
+                    """,
+                    event_id,
+                    section,
+                    description,
+                    json.dumps(organizers, ensure_ascii=False),
+                    start_time,
+                    end_time
+                )

@@ -106,6 +106,9 @@ class DataBase:
                     "description": row["description"],
                     "organizers": row["organizers"]
                 }
+                
+            while not isinstance(event['organizers'], list):
+                event['organizers'] = json.loads(event['organizers'])
 
             return event
 

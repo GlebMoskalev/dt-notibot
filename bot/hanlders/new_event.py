@@ -1,7 +1,8 @@
 from bot.services import DataBase
 from aiogram.types import Message, ReplyKeyboardMarkup, KeyboardButton
 from aiogram import Dispatcher
-from bot.filters import CommandAccessFilter
+from aiogram.filters import StateFilter, and_f
+from bot.filters import CommandAccessFilter, IsAddingEventFilter
 from bot.messages import new_event
 from bot.states import EventStates
 from aiogram.fsm.context import FSMContext
@@ -21,27 +22,27 @@ async def register_new_event_handlers(dp: Dispatcher, db: DataBase) -> None:
     
     dp.message.register(
         handler.section_command,
-        EventStates.waiting_for_section
+        and_f(StateFilter(EventStates.waiting_for_section), IsAddingEventFilter())
     )
     
     dp.message.register(
         handler.organizers_command,
-        EventStates.waiting_for_description
+        and_f(StateFilter(EventStates.waiting_for_description), IsAddingEventFilter())
     )
     
     dp.message.register(
         handler.start_time_command,
-        EventStates.waiting_for_organizers
+        and_f(StateFilter(EventStates.waiting_for_organizers), IsAddingEventFilter())
     )
     
     dp.message.register(
         handler.end_time_command,
-        EventStates.waiting_for_start_time
+        and_f(StateFilter(EventStates.waiting_for_start_time), IsAddingEventFilter())
     )
     
     dp.message.register(
         handler.end_add_event_command,
-        EventStates.waiting_for_end_time
+        and_f(StateFilter(EventStates.waiting_for_end_time), IsAddingEventFilter())
     )
 
 class NewEventHandler:
@@ -54,6 +55,7 @@ class NewEventHandler:
         self.event_sections = await self.db.get_event_sections()
 
     async def add_event_command(self, message: Message, state: FSMContext) -> None:
+        await state.set_data({"is_adding_event": True})
         section_buttons = self.__create_section_buttons()
         start_message = new_event.start_new_event_message() + '\n' + new_event.section_event_message()
         await message.answer(text=start_message, reply_markup=section_buttons)

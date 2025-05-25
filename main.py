@@ -3,7 +3,7 @@ from bot.hanlders import register_all_handlers
 from dotenv import load_dotenv
 from aiogram import Bot, Dispatcher, types
 import os
-from bot.services import DataBase
+from bot.services import DataBase, NotificationDaemon
 
 
 async def main():
@@ -16,10 +16,13 @@ async def main():
     dp = Dispatcher()
 
     db = DataBase(os.getenv("DATABASE_URL"))
+    notificated_daemon = NotificationDaemon(bot, db)
 
     try:
         await db.connect()
         # await db.regenerate_invite_codes()
+    
+        asyncio.create_task(notificated_daemon.run())
 
         await register_all_handlers(dp, db)
         await dp.start_polling(bot)

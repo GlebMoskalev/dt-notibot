@@ -116,3 +116,10 @@ class FavouriteEvent(Base):
 
     user = relationship("User", back_populates="favorite_events")
     event = relationship("Event", back_populates="favourite_events")
+
+
+class NotificatedEvents(Base):
+    __tablename__ = 'notificated_events'
+    
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    event_id = Column(UUID(as_uuid=True), nullable=False)

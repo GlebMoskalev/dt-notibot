@@ -212,6 +212,18 @@ class DataBase:
 
             return formatted_events, total_count
     
+    async def get_users_by_favorite_events(self, event_ids: List) -> List[str]:
+        async with self.pool.acquire() as conn:
+            users = await conn.fetch(
+                    """
+                    SELECT DISTINCT(user_id)
+                    FROM favourite_events
+                    WHERE event_id = ANY($1)
+                    """,
+                    event_ids
+                )
+            return [user['user_id'] for user in users]
+
     # переделать этот запрос на работу с enum sections,
     # как станет известно, какие у нас есть секции
     async def get_event_sections(self) -> List[str]:
@@ -290,3 +302,25 @@ class DataBase:
                     start_time,
                     end_time
                 )
+    
+    async def add_notificated_event(self, event_id: str) -> None:
+        async with self.pool.acquire() as conn:
+            await conn.execute(
+                """
+                INSERT INTO notificated_events (
+                    event_id
+                ) VALUES ($1)
+                """,
+                event_id
+            )
+    
+    async def get_notificated_events(self) -> List:
+        async with self.pool.acquire() as conn:
+            events = await conn.fetch(
+                """
+                SELECT DISTINCT(event_id)
+                FROM notificated_events
+                """
+            )
+
+            return list([row['event_id'] for row in events])

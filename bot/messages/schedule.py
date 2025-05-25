@@ -17,7 +17,7 @@ def schedules_message(schedules: List[Dict]) -> str:
         else:
             formatted_time = str(start_time)
         message_lines.append(
-            f"📌 {description}\n\t🕒 {formatted_time}\n\t👨🏻‍💼 {lecturer}\n\t➕ /add_favorite_{idx}\n"
+            f"📌 {description}\n\t🕒 {formatted_time}\n\t👨🏻‍💼 {lecturer}\n\t➕ /add_favorite_{idx}\n\t📝 /edit_event_{idx}\n"
         )
 
     return "\n".join(message_lines)

@@ -323,4 +323,4 @@ class DataBase:
                 """
             )
 
-            return list([row['event_id'] for row in events])
+            return list([str(row['event_id']) for row in events])

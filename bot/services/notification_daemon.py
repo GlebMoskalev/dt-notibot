@@ -37,8 +37,9 @@ class NotificationDaemon:
                     except Exception as error:
                         print(f'Не смогли отправить сообщение в чат {chat_id}, ошибка: {error}')
                 
-                for event in all_events:
-                    await self.db.add_notificated_event(event)
+                if chat_ids:
+                    for event in all_events:
+                        await self.db.add_notificated_event(event)
             except Exception as error:
                 print(f'Something went wrong in notificaton daemon work: {error}')
             finally:

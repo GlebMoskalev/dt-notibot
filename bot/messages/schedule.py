@@ -3,7 +3,7 @@ from typing import List, Dict
 def no_schedules_message() -> str:
     return "Список расписания пуст."
 
-def schedules_message(schedules: List[Dict]) -> str:
+def schedules_message(schedules: List[Dict], is_admin: bool) -> str:
     if not schedules:
         return no_schedules_message()
 
@@ -17,8 +17,12 @@ def schedules_message(schedules: List[Dict]) -> str:
         else:
             formatted_time = str(start_time)
         message_lines.append(
-            f"📌 {description}\n\t🕒 {formatted_time}\n\t👨🏻‍💼 {lecturer}\n\t➕ /add_favorite_{idx}\n\t📝 /edit_event_{idx}\n"
+            f"📌 {description}\n\t🕒 {formatted_time}\n\t👨🏻‍💼 {lecturer}\n\t➕ /add_favorite_{idx}"
         )
+        
+        if is_admin:
+            message_lines.append(f'\t📝 /edit_event_{idx}\n\t➖ /remove_event_{idx}')
+        message_lines.append('')
 
     return "\n".join(message_lines)
 

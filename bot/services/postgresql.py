@@ -175,6 +175,16 @@ class DataBase:
                 user_id, event_id
             )
 
+    async def remove_event(self, event_id: str) -> None:
+        async with self.pool.acquire() as conn:
+            await conn.execute(
+                """
+                DELETE FROM events
+                WHERE id = $1
+                """,
+                event_id
+            )
+
     async def get_favorite_events_paginated(self, user_id: int, limit: int = 5,
                                             offset: int = 0) -> tuple[List[Dict], int]:
         async with self.pool.acquire() as conn:

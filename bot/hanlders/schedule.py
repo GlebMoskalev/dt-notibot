@@ -25,6 +25,11 @@ def register_schedule_handlers(dp: Dispatcher, db: DataBase) -> None:
         handler.schedule_callback,
         Pagination.filter(F.prefix == 'schedule')
     )
+    
+    dp.message.register(
+        handler.remove_by_command,
+        lambda message: message.text.startswith("/remove_event_")
+    )
 
     dp.callback_query.register(
         handler.ignore_callback,
@@ -84,6 +89,7 @@ class ScheduleHandler:
         self.user_page_events = defaultdict(list)
         self.user_favorite_events = defaultdict(list)
         self.last_favorites_message = defaultdict(list)
+        self.last_events_message = defaultdict(list)
         self.event_sections = None
         self.next_command = '➡️Next'
         self.event_sections = self.db.get_event_sections()
@@ -148,18 +154,21 @@ class ScheduleHandler:
             user_id = message.from_user.id if message else callback.from_user.id
             self.user_page_events[user_id] = [event["id"] for event in
                                               schedules]
-
-            text_schedules = schedules_message(schedules)
+            
+            user_role = await self.db.get_user_role(user_id)
+            text_schedules = schedules_message(schedules, user_role != 'User')
             if message is not None:
-                await message.answer(
+                sent_message = await message.answer(
                     text=text_schedules,
                     reply_markup=Pagination_keyboard(page, total_pages, "schedule")
                 )
+                self.last_events_message[user_id] = sent_message.message_id
             elif callback is not None:
                 await callback.message.edit_text(
                     text=text_schedules,
                     reply_markup=Pagination_keyboard(page, total_pages, "schedule")
                 )
+                self.last_events_message[user_id] = callback.message.message_id
 
         except Exception as e:
             print(e)
@@ -383,6 +392,53 @@ class ScheduleHandler:
         except ValueError:
             await message.answer(
                 "Ошибка в формате команды. Пример: /remove_favorite_1")
+        except Exception as e:
+            print(e)
+            await message.answer("Произошла ошибка. Попробуйте снова.")
+
+    async def remove_by_command(self, message: Message):
+        try:
+            command = message.text
+            index = int(command.split("_")[-1])
+            user_id = message.from_user.id
+
+            event_ids = self.user_page_events.get(user_id, [])
+
+            if not event_ids:
+                await message.answer(
+                    "Сначала откройте события с помощью /schedule.")
+                return
+
+            if 1 <= index <= len(event_ids):
+                event_id = event_ids[index - 1]
+                await self.db.remove_event(event_id)
+
+                events, total = await self.db.get_events_paginated(self.limit, 0)
+                total_pages = (total + self.limit - 1) // self.limit if total > 0 else 1
+                self.user_page_events[user_id] = [event["id"] for event in events]
+
+                if user_id in self.last_events_message:
+                    user_role = await self.db.get_user_role(user_id)
+                    text_schedules = schedules_message(events, user_role != 'User')
+                    try:
+                        await message.bot.edit_message_text(
+                            chat_id=message.chat.id,
+                            message_id=self.last_events_message[user_id],
+                            text=text_schedules,
+                            reply_markup=Pagination_keyboard(
+                                1, total_pages,
+                                "schedule")
+                        )
+                    except Exception as e:
+                        print(e)
+
+                await message.answer("Событие удалено. ❌")
+            else:
+                await message.answer(
+                    "Неверный индекс события. Используйте /schedule для просмотра.")
+        except ValueError:
+            await message.answer(
+                "Ошибка в формате команды. Пример: /remove_event_1")
         except Exception as e:
             print(e)
             await message.answer("Произошла ошибка. Попробуйте снова.")

@@ -112,7 +112,9 @@ class FavouriteEvent(Base):
 
     id = Column(Integer, primary_key=True, autoincrement=True)
     user_id = Column(BigInteger, ForeignKey('users.chat_id'), nullable=False)
-    event_id = Column(UUID(as_uuid=True), ForeignKey('events.id'), nullable=False)
+    event_id = Column(UUID(as_uuid=True), 
+                     ForeignKey('events.id', ondelete='CASCADE'),
+                     nullable=False)
 
     user = relationship("User", back_populates="favorite_events")
     event = relationship("Event", back_populates="favourite_events")

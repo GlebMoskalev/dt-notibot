@@ -1,4 +1,8 @@
 import asyncio
+
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
+
 from bot.hanlders import register_all_handlers
 from dotenv import load_dotenv
 from aiogram import Bot, Dispatcher, types
@@ -16,6 +20,9 @@ async def main():
     dp = Dispatcher()
 
     db = DataBase(os.getenv("DATABASE_URL"))
+    engine = create_engine(os.getenv("DATABASE_URL"))
+    local_session = sessionmaker(bind=engine)
+    session = local_session()
     notificated_daemon = NotificationDaemon(bot, db)
 
     try:
@@ -30,6 +37,7 @@ async def main():
         print(f"Startup error: {e}")
     finally:
         await db.close()
+        session.close()
 
 
 if __name__ == "__main__":

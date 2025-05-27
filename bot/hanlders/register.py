@@ -1,4 +1,8 @@
 from aiogram import Dispatcher, F
+from sqlalchemy.orm import Session
+
+from .contest import register_contest_handlers
+from .friends import register_friends_handlers
 from .invite import register_invite_handlers
 from .start import register_start_handlers
 from .schedule import register_schedule_handlers
@@ -11,7 +15,7 @@ from aiogram.types import Message
 from bot.messages import command_not_found_message, access_denied_message
 from bot.commands import admin_commands, super_admin_commands, user_commands
 
-def register_all_handlers(dp: Dispatcher, db: DataBase) -> None:
+def register_all_handlers(dp: Dispatcher, db: DataBase, session: Session) -> None:
     register_start_handlers(dp, db)
     register_invite_handlers(dp, db)
     register_schedule_handlers(dp, db)
@@ -21,6 +25,8 @@ def register_all_handlers(dp: Dispatcher, db: DataBase) -> None:
     register_superadmins_handler(dp, db)
 
     register_new_event_handlers(dp, db)
+    register_friends_handlers(dp, db, session)
+    register_contest_handlers(dp, db, session)
 
     dp.message.register(unknown_command_handler, F.text.startswith('/'))
 

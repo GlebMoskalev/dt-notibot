@@ -1,1 +1,1 @@
-from .event_states import EventStates
+from .event_states import EventStates, SendFriendInviteState

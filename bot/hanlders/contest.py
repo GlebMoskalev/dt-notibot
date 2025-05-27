@@ -16,10 +16,10 @@ from bot.states.event_states import ContestCreationStates
 
 def register_contest_handlers(dp: Dispatcher, db: DataBase, session: Session) -> None:
     handler = ContestHandler(db, session)
-    dp.message.register(
-        handler.start_contest,
-        CommandAccessFilter(command='start_contest', db=db)
-    )
+    # dp.message.register(
+    #     handler.start_contest,
+    #     CommandAccessFilter(command='start_contest', db=db)
+    # )
 
     dp.message.register(
         handler.get_leaderboard,

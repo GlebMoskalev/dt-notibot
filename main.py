@@ -31,7 +31,7 @@ async def main():
     
         asyncio.create_task(notificated_daemon.run())
 
-        register_all_handlers(dp, db)
+        register_all_handlers(dp, db, session)
         await dp.start_polling(bot)
     except Exception as e:
         print(f"Startup error: {e}")

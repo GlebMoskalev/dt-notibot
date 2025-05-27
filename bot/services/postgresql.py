@@ -11,6 +11,8 @@ from bot.services.migrations.db import SectionEnum
 
 from bot.services.migrations.db import User
 
+from bot.services.migrations.db import User
+
 class RoleEnum(str, Enum):
     User = "User"
     Admin = "Admin"

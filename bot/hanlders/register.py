@@ -24,9 +24,10 @@ def register_all_handlers(dp: Dispatcher, db: DataBase, session: Session) -> Non
     register_admins_handler(dp, db)
     register_superadmins_handler(dp, db)
 
-    register_new_event_handlers(dp, db)
     register_friends_handlers(dp, db, session)
     register_contest_handlers(dp, db, session)
+
+    register_new_event_handlers(dp, db)
 
     dp.message.register(unknown_command_handler, F.text.startswith('/'))
 

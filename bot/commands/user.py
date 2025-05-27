@@ -1,10 +1,15 @@
 from aiogram.types import BotCommand
 
 user_commands = [
+    # Schedule commands
     BotCommand(command="schedule", description="Полное расписание всего мероприятия"),
     BotCommand(command="schedule_favorites", description="Расписание только с избранными событиями"),
+
+    # Friend Invite Commands
     BotCommand(command="friends", description="Список друзей"),
-    BotCommand(command="friendship_invites_sent", description="Список отправленных приглашений на дружбу"),
-    BotCommand(command="friendship_send", description="Отправить приглашение на дружбу"),
-    BotCommand(command="friendship_invites_received", description="Cписок полученных приглашений на дружбу")
+    BotCommand(command="accept_invite", description="Ввести код приглашения"),
+    BotCommand(command="invite_code", description="Получить мой код приглашения"),
+
+    # Contest commands
+    BotCommand(command="leaderboard", description="Текущий рейтинг конкурса"),
 ]

@@ -7,3 +7,10 @@ class EventStates(StatesGroup):
     waiting_for_organizers = State()
     waiting_for_start_time = State()
     waiting_for_end_time = State()
+
+class SendFriendInviteState(StatesGroup):
+    waiting_for_telegram_code = State()
+
+class ContestCreationStates(StatesGroup):
+    waiting_for_start_time = State()
+    waiting_for_end_time = State()

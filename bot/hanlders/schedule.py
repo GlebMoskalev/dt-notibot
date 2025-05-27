@@ -13,9 +13,9 @@ from datetime import datetime
 from typing import List
 import re
 
-async def register_schedule_handlers(dp: Dispatcher, db: DataBase) -> None:
+def register_schedule_handlers(dp: Dispatcher, db: DataBase) -> None:
     handler = ScheduleHandler(db)
-    await handler.create()
+
     dp.message.register(
         handler.start_schedule,
         CommandAccessFilter(command='schedule', db=db)
@@ -86,9 +86,7 @@ class ScheduleHandler:
         self.last_favorites_message = defaultdict(list)
         self.event_sections = None
         self.next_command = '➡️Next'
-    
-    async def create(self):
-        self.event_sections = await self.db.get_event_sections()
+        self.event_sections = self.db.get_event_sections()
 
     async def start_schedule(self, message: Message):
         return await self.__handle_schedule_page(message=message, page=1)

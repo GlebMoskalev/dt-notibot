@@ -11,16 +11,16 @@ from aiogram.types import Message
 from bot.messages import command_not_found_message, access_denied_message
 from bot.commands import admin_commands, super_admin_commands, user_commands
 
-async def register_all_handlers(dp: Dispatcher, db: DataBase) -> None:
+def register_all_handlers(dp: Dispatcher, db: DataBase) -> None:
     register_start_handlers(dp, db)
     register_invite_handlers(dp, db)
-    await register_schedule_handlers(dp, db)
+    register_schedule_handlers(dp, db)
 
     register_users_handler(dp, db)
     register_admins_handler(dp, db)
     register_superadmins_handler(dp, db)
 
-    await register_new_event_handlers(dp, db)
+    register_new_event_handlers(dp, db)
 
     dp.message.register(unknown_command_handler, F.text.startswith('/'))
 

@@ -11,9 +11,8 @@ from datetime import datetime
 from typing import List
 
 
-async def register_new_event_handlers(dp: Dispatcher, db: DataBase) -> None:
+def register_new_event_handlers(dp: Dispatcher, db: DataBase) -> None:
     handler = NewEventHandler(db)
-    await handler.create()
     
     dp.message.register(
         handler.add_event_command,
@@ -50,9 +49,7 @@ class NewEventHandler:
         self.db = db
         self.limit = 5
         self.event_sections = None
-    
-    async def create(self):
-        self.event_sections = await self.db.get_event_sections()
+        self.event_sections = self.db.get_event_sections()
 
     async def add_event_command(self, message: Message, state: FSMContext) -> None:
         await state.set_data({"is_adding_event": True})

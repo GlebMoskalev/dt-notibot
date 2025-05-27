@@ -5,6 +5,7 @@ import secrets
 from enum import Enum
 from typing import Optional, Dict, Union, List
 from datetime import datetime
+from bot.services.migrations.db import SectionEnum
 
 class RoleEnum(str, Enum):
     User = "User"
@@ -224,19 +225,9 @@ class DataBase:
                 )
             return [user['user_id'] for user in users]
 
-    # переделать этот запрос на работу с enum sections,
-    # как станет известно, какие у нас есть секции
-    async def get_event_sections(self) -> List[str]:
-        async with self.pool.acquire() as conn:
-            events = await conn.fetch(
-                """
-                SELECT DISTINCT(section)
-                FROM events
-                """
-            )
-
-            return [row['section'] for row in events]
-    
+    def get_event_sections(self) -> List[str]:
+        all_sections = list(SectionEnum)
+        return [section.value for section in all_sections]
     
     async def add_event(
         self,

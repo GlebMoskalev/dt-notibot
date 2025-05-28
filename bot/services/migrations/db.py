@@ -1,6 +1,8 @@
+import datetime
 import enum
 
-from sqlalchemy import create_engine, Column, UUID, BigInteger, String, Enum, TIMESTAMP, JSON, ForeignKey, Integer
+from sqlalchemy import create_engine, Column, UUID, BigInteger, String, Enum, TIMESTAMP, JSON, ForeignKey, Integer, \
+    DateTime, Boolean, UniqueConstraint, func, union_all, select
 from sqlalchemy.orm import declarative_base, relationship
 from dotenv import load_dotenv
 import os
@@ -33,6 +35,21 @@ class InviteStatusEnum(enum.Enum):
     Approved = "Approved"
     Rejected = "Rejected"
 
+class Friend(Base):
+    __tablename__ = 'friends'
+
+    user_id = Column(BigInteger, ForeignKey('users.chat_id'),
+                     primary_key=True,
+                     nullable=False)
+    friend_id = Column(BigInteger, ForeignKey('users.chat_id'),
+                       primary_key = True,
+                       nullable=False)
+
+    contest_id = Column(Integer, ForeignKey('contests.id'))
+
+    contest = relationship("Contest", back_populates="friends")
+
+
 
 class User(Base):
     __tablename__ = 'users'
@@ -40,36 +57,24 @@ class User(Base):
     chat_id = Column(BigInteger, primary_key=True)
     role = Column(Enum(RoleEnum), nullable=False)
     telegram_name = Column(String(32), nullable=False)
-
-    friends_as_first = relationship("Friend",
-                                    foreign_keys="Friend.first_chat_id",
-                                    back_populates="first_user")
-    friends_as_second = relationship("Friend",
-                                     foreign_keys="Friend.second_chat_id",
-                                     back_populates="second_user")
-    sent_friendship_invites = relationship("FriendshipInvite",
-                                           foreign_keys="FriendshipInvite.sender_id",
-                                           back_populates="sender")
-    received_friendship_invites = relationship("FriendshipInvite",
-                                               foreign_keys="FriendshipInvite.receiver_id",
-                                               back_populates="receiver")
+    unique_code = Column(String(32), nullable=False)
     favorite_events = relationship("FavouriteEvent", back_populates="user")
 
+    friends = relationship(
+        'User',
+        secondary='friends',
+        primaryjoin=chat_id == Friend.user_id,
+        secondaryjoin=chat_id == Friend.friend_id,
+        # back_populates="users"
+    )
 
-class Friend(Base):
-    __tablename__ = 'friends'
+class Contest(Base):
+    __tablename__ = 'contests'
 
-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    first_chat_id = Column(BigInteger, ForeignKey('users.chat_id'),
-                           nullable=False)
-    second_chat_id = Column(BigInteger, ForeignKey('users.chat_id'),
-                            nullable=False)
-
-    first_user = relationship("User", foreign_keys=[first_chat_id],
-                              back_populates="friends_as_first")
-    second_user = relationship("User", foreign_keys=[second_chat_id],
-                               back_populates="friends_as_second")
-
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    start_date_time = Column(DateTime, nullable=False)
+    end_date_time = Column(DateTime, nullable=False)
+    active = Column(Boolean, nullable=False, default=True)
 
 class Invite(Base):
     __tablename__ = 'invites'
@@ -77,22 +82,6 @@ class Invite(Base):
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     secret_code = Column(String(20), nullable=False)
     role = Column(Enum(RoleEnum), nullable=False)
-
-
-class FriendshipInvite(Base):
-    __tablename__ = 'friendship_invites'
-
-    id = Column(Integer, primary_key=True, autoincrement=True)
-    sender_id = Column(BigInteger, ForeignKey('users.chat_id'), nullable=False)
-    receiver_id = Column(BigInteger, ForeignKey('users.chat_id'), nullable=False)
-    invite_status = Column(Enum(InviteStatusEnum), nullable=False,
-                           default=InviteStatusEnum.Pending)
-
-    sender = relationship("User", foreign_keys=[sender_id],
-                          back_populates="sent_friendship_invites")
-    receiver = relationship("User", foreign_keys=[receiver_id],
-                            back_populates="received_friendship_invites")
-
 
 class Event(Base):
     __tablename__ = 'events'

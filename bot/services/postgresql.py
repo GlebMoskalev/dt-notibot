@@ -1,3 +1,5 @@
+import random
+
 import asyncpg
 import uuid
 import json
@@ -6,6 +8,10 @@ from enum import Enum
 from typing import Optional, Dict, Union, List
 from datetime import datetime
 from bot.services.migrations.db import SectionEnum
+
+from bot.services.migrations.db import User
+
+from bot.services.migrations.db import User
 
 class RoleEnum(str, Enum):
     User = "User"
@@ -30,6 +36,45 @@ class DataBase:
                 DO UPDATE SET telegram_name = EXCLUDED.telegram_name, role = EXCLUDED.role
                 """,
                 chat_id, telegram_name, str(role)
+            )
+
+
+    async def get_invite_code(self, chat_id: int):
+        async with self.pool.acquire() as conn:
+            result = await conn.fetchrow(
+                "SELECT unique_code FROM users WHERE chat_id = $1",
+                chat_id
+            )
+            return result["unique_code"]
+
+    async def get_user_by_code(self, code: int) -> Optional[User]:
+        async with self.pool.acquire() as conn:
+            return await conn.fetchrow(
+                "SELECT * FROM users WHERE unique_code = $1",
+                str(code)
+            )
+
+    async def get_user_by_id(self, code: int) -> Optional[User]:
+        async with self.pool.acquire() as conn:
+            return await conn.fetchrow(
+                "SELECT * FROM users WHERE unique_code = $1",
+                str(code)
+            )
+
+    async def regenerate_invite_code(self, chat_id: int) -> int:
+        new_code = random.randint(100_000, 1_000_000)
+        async with self.pool.acquire() as conn:
+                await conn.execute(
+                    "UPDATE users SET unique_code = $1 WHERE chat_id = $2",
+                    str(new_code), chat_id
+                )
+        return new_code
+
+    async def add_friend(self, sender_id: int, receiver_id: int):
+        async with self.pool.acquire() as conn:
+            await conn.execute(
+                "INSERT INTO friends (sender_chat_id, receiver_chat_id) VALUES ($1, $2)",
+                sender_id, receiver_id
             )
 
     # вряд ли сущностей будет много,

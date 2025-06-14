@@ -27,15 +27,16 @@ class DataBase:
         self.pool = await asyncpg.create_pool(self.dsn)
 
     async def add_users(self, chat_id: int, telegram_name: Optional[str], role: Union[str, RoleEnum]) -> None:
+        new_code = random.randint(100_000, 1_000_000)
         async with self.pool.acquire() as conn:
             await conn.execute(
                 """
-                INSERT INTO users (chat_id, telegram_name, role)
+                INSERT INTO users (chat_id, telegram_name, role, unique_code)
                 VALUES ($1, $2, $3)
                 ON CONFLICT (chat_id)
                 DO UPDATE SET telegram_name = EXCLUDED.telegram_name, role = EXCLUDED.role
                 """,
-                chat_id, telegram_name, str(role)
+                chat_id, telegram_name, str(role), new_code
             )
 
 

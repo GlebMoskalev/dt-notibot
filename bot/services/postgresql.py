@@ -32,11 +32,11 @@ class DataBase:
             await conn.execute(
                 """
                 INSERT INTO users (chat_id, telegram_name, role, unique_code)
-                VALUES ($1, $2, $3)
+                VALUES ($1, $2, $3, $4)
                 ON CONFLICT (chat_id)
                 DO UPDATE SET telegram_name = EXCLUDED.telegram_name, role = EXCLUDED.role
                 """,
-                chat_id, telegram_name, str(role), new_code
+                chat_id, telegram_name, str(role), str(new_code)
             )
 
 

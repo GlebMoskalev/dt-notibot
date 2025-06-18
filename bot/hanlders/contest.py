@@ -11,15 +11,10 @@ from bot.messages.superadmin import leaderboards_message
 from bot.services.migrations.sqlalchemy import get_users_by_friend_count
 from bot.services.postgresql import DataBase
 from bot.filters import CommandAccessFilter
-from bot.states.event_states import ContestCreationStates
 
 
 def register_contest_handlers(dp: Dispatcher, db: DataBase, session: Session) -> None:
     handler = ContestHandler(db, session)
-    # dp.message.register(
-    #     handler.start_contest,
-    #     CommandAccessFilter(command='start_contest', db=db)
-    # )
 
     dp.message.register(
         handler.get_leaderboard,

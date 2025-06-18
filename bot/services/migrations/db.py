@@ -64,6 +64,14 @@ class User(Base):
         # back_populates="users"
     )
 
+class Contest(Base):
+    __tablename__ = 'contests'
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    start_date_time = Column(DateTime, nullable=False)
+    end_date_time = Column(DateTime, nullable=False)
+    active = Column(Boolean, nullable=False, default=True)
+
 class Invite(Base):
     __tablename__ = 'invites'
 

@@ -4,14 +4,10 @@ from typing import Type
 from sqlalchemy import func, desc
 from sqlalchemy.orm import Session
 
-from bot.services.migrations.db import Friend, User, Contest
+from bot.services.migrations.db import Friend, User
 
 
 # TODO: Create a repository
-
-def get_active_contest(session: Session):
-    return session.query(Contest).first()
-
 def get_users_by_friend_count(session, limit=10):
     return (
         session.query(

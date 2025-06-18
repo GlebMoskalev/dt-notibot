@@ -135,10 +135,13 @@ class FriendInviteHandler:
             new_code = recreate_invite_code(self.session, sender.chat_id)
             await message.answer(f"Пользователь @{sender.telegram_name} успешно добавлен в друзья!")
 
-            await message.bot.send_message(sender.chat_id,
-                                           f"Пользователь @{sender.telegram_name} успешно добавлен в друзья!")
-            await message.bot.send_message(sender.chat_id, f"Ваш новый код: `{new_code}`",
-                                           parse_mode=ParseMode.MARKDOWN)
+            try:
+                await message.bot.send_message(sender.chat_id,
+                                               f"Пользователь @{sender.telegram_name} успешно добавлен в друзья!")
+                await message.bot.send_message(sender.chat_id, f"Ваш новый код: `{new_code}`",
+                                               parse_mode=ParseMode.MARKDOWN)
+            except:
+                pass
         except Exception as e:
             await message.answer(error_message())
             print(e)
